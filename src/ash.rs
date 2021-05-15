@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::fs;
 use shell_words;
 use termcolor::StandardStream;
-use crate::{consts::{COMMANDS_HELP, DEFAULT_DIR, HELP_MESSAGE}, cursor, error, success};
+use crate::{consts::{COMMANDS_HELP, DEFAULT_DIR, HELP_MESSAGE}, cursor, input, success};
 
 fn echo(argv: &Vec<String>) {
 	let mut args = argv.clone();
@@ -14,17 +14,20 @@ fn fwd(cd: &PathBuf) -> String {
 	match cd.strip_prefix(".") {
 		Ok(c) => c.display().to_string(),
 		Err(_e) => {
-			// error(&format!("Failed to strip prefix. Details: {}", _e)); // Happens when trying to cd .. multiple times
+			// Happens when trying to cd .. multiple times
+			// error(&format!("Failed to strip prefix. Details: {}", _e));
 			String::from("")
 		},
 	}
 }
 
-fn pwd(cd: &PathBuf) {
-	println!("/{}", fwd(cd));
-}
+fn pwd(cd: &PathBuf) { println!("/{}", fwd(cd)); }
 
-fn cd(current_dir: &mut PathBuf, commands: Vec<String>, screen: &mut StandardStream) -> bool {
+fn cd(
+		current_dir: &mut PathBuf, commands: Vec<String>,
+		screen: &mut StandardStream,
+		error: &mut (dyn for<'a, 'b> FnMut(&'a str, &'b mut StandardStream) + 'static)
+) -> bool {
 	if commands.len() < 2 { return true; }
 	
 	let default_dir = PathBuf::from(DEFAULT_DIR);
@@ -81,7 +84,9 @@ fn ls(current_dir: &PathBuf) {
 pub fn start(username: &str, pc_name: &str, screen: &mut StandardStream) {
 	let mut current_dir = PathBuf::from(DEFAULT_DIR);
 
-	
+	let mut error = |msg: &str, screen: &mut StandardStream| {
+		crate::error(msg, screen);
+	};
 
 	loop {
 		let commands = cursor(&format!("[{}@{} /{}]$ ", username, pc_name, fwd(&current_dir)), screen);
@@ -116,14 +121,14 @@ pub fn start(username: &str, pc_name: &str, screen: &mut StandardStream) {
 			pwd(&current_dir);
 		} else if command == "cd" {
 			if commands_len >= 2 {
-				cd(&mut current_dir, commands, screen);
+				cd(&mut current_dir, commands, screen, &mut error);
 			}
 		} else if command == "ls" {
 			if commands_len == 1 {
 				ls(&current_dir);
 			} else if commands_len >= 2 {
 				let mut temp_dir = current_dir.clone();
-				if cd(&mut temp_dir, commands, screen) {
+				if cd(&mut temp_dir, commands, screen, &mut error) {
 					ls(&temp_dir);
 				}
 			}
@@ -161,6 +166,26 @@ pub fn start(username: &str, pc_name: &str, screen: &mut StandardStream) {
 					match fs::remove_dir(&temp_dir) {
 					    Ok(_) => success(&format!("Successfully removed empty directory '{}'", dir_name), screen),
 					    Err(e) => error(&format!("Failed to remove directory. Details: {}", e), screen),
+					}
+				} else {
+					error(&format!("The directory '{}' does not exist", dir_name), screen);
+				}
+			}
+		} else if command == "rmall" {
+			if commands_len >= 2 {
+				let dir_name = &commands[1];
+				let mut temp_dir = current_dir.clone();
+
+				temp_dir.push(dir_name);
+
+				if temp_dir.is_dir() {
+					let choice = input(&format!("Are you sure you want to deleted '{}' and all of its contents?\nType 'yes' to continue, or anything else to cancel.\n>> ", dir_name));
+
+					if choice == "yes" {
+						match fs::remove_dir_all(&temp_dir) {
+							Ok(_) => success(&format!("Successfully removed directory '{}' and its contents", dir_name), screen),
+							Err(e) => error(&format!("Failed to remove directory and its contents. Details: {}", e), screen),
+						}
 					}
 				} else {
 					error(&format!("The directory '{}' does not exist", dir_name), screen);
