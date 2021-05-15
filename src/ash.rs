@@ -179,12 +179,26 @@ pub fn start(username: &str, pc_name: &str, screen: &mut StandardStream) {
 				temp_dir.push(dir_name);
 
 				if temp_dir.is_dir() {
-					let choice = input(&format!("Are you sure you want to deleted '{}' and all of its contents?\nType 'yes' to continue, or anything else to cancel.\n>> ", dir_name));
+					let choice = input(
+						&format!("Are you sure you want to deleted '{}' and all of its contents?
+Type 'yes' to continue, or anything else to cancel.
+>> ", dir_name)
+					);
 
 					if choice == "yes" {
 						match fs::remove_dir_all(&temp_dir) {
-							Ok(_) => success(&format!("Successfully removed directory '{}' and its contents", dir_name), screen),
-							Err(e) => error(&format!("Failed to remove directory and its contents. Details: {}", e), screen),
+							Ok(_) => {
+								success(
+									&format!("Successfully removed directory '{}' and its contents", dir_name),
+									screen
+								)
+							},
+							Err(e) => {
+								error(
+									&format!("Failed to remove directory and its contents. Details: {}", e),
+									screen
+								)
+							},
 						}
 					}
 				} else {
