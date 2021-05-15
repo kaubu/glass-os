@@ -8,7 +8,7 @@ const DEFAULT_CONSOLE_COLOR: Color = Color::White;
 const CONSOLE_CURSOR_COLOR: Color = Color::Green;
 
 const ERROR_MESSAGES: bool = true;
-const DEBUG_MESSAGES: bool = false;
+const DEBUG_MESSAGES: bool = true;
 const SUCCESS_MESSAGES: bool = true;
 
 fn main() {
