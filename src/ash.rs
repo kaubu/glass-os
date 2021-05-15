@@ -1,6 +1,8 @@
 use std::path::PathBuf;
+use std::fs;
 use shell_words;
-use crate::{consts::{COMMANDS_HELP, DEFAULT_DIR, HELP_MESSAGE}, cursor, error};
+use termcolor::StandardStream;
+use crate::{consts::{COMMANDS_HELP, DEFAULT_DIR, HELP_MESSAGE}, cursor, error, success};
 
 fn echo(argv: &Vec<String>) {
 	let mut args = argv.clone();
@@ -22,8 +24,8 @@ fn pwd(cd: &PathBuf) {
 	println!("/{}", fwd(cd));
 }
 
-fn cd(current_dir: &mut PathBuf, commands: Vec<String>) {
-	if commands.len() < 2 { return; }
+fn cd(current_dir: &mut PathBuf, commands: Vec<String>, screen: &mut StandardStream) -> bool {
+	if commands.len() < 2 { return true; }
 	
 	let default_dir = PathBuf::from(DEFAULT_DIR);
 	
@@ -40,22 +42,24 @@ fn cd(current_dir: &mut PathBuf, commands: Vec<String>) {
 				current_dir.pop(); // Gets rid of ..
 				if current_dir.as_path() == default_dir.as_path() {
 					// Gets rid of .., but does not get rid of directory above, because it's at the root
-					error("Can not go above root directory");
-					return;
+					error("Can not go above root directory", screen);
+					return true;
 				}
 				
 				current_dir.pop(); // Gets rid of the dir above
 			// If it's not a directory, a file, or nothing
 			} else if current_dir.is_file() {
 				current_dir.pop();
-				error(&format!("'{}' is a file, not a directory", dir));
+				error(&format!("'{}' is a file, not a directory", dir), screen);
 			} else if !current_dir.is_dir() && dir != "" {
-				error(&format!("The directory '{}' does not exit", dir));
+				error(&format!("The directory '{}' does not exist", dir), screen);
 				current_dir.pop();
-				return;
+				return false;
 			}
 		}
 	}
+
+	true
 }
 
 fn ls(current_dir: &PathBuf) {
@@ -74,14 +78,16 @@ fn ls(current_dir: &PathBuf) {
 	}
 }
 
-pub fn start(username: &str, pc_name: &str) {
+pub fn start(username: &str, pc_name: &str, screen: &mut StandardStream) {
 	let mut current_dir = PathBuf::from(DEFAULT_DIR);
 
+	
+
 	loop {
-		let commands = cursor(&format!("[{}@{} /{}]$ ", username, pc_name, fwd(&current_dir)));
+		let commands = cursor(&format!("[{}@{} /{}]$ ", username, pc_name, fwd(&current_dir)), screen);
 		let commands = match shell_words::split(&commands) {
 			Err(e) => {
-				error(&format!("Could not split command arguments. Details: {}", e));
+				error(&format!("Could not split command arguments. Details: {}", e), screen);
 				continue;
 			},
 		    Ok(a) => a,
@@ -110,15 +116,55 @@ pub fn start(username: &str, pc_name: &str) {
 			pwd(&current_dir);
 		} else if command == "cd" {
 			if commands_len >= 2 {
-				cd(&mut current_dir, commands);
+				cd(&mut current_dir, commands, screen);
 			}
 		} else if command == "ls" {
 			if commands_len == 1 {
 				ls(&current_dir);
 			} else if commands_len >= 2 {
 				let mut temp_dir = current_dir.clone();
-				cd(&mut temp_dir, commands);
-				ls(&temp_dir);
+				if cd(&mut temp_dir, commands, screen) {
+					ls(&temp_dir);
+				}
+			}
+		} else if command == "mkdir" {
+			if commands_len >= 2 {
+				let dir_name = &commands[1];
+				let mut temp_dir = current_dir.clone();
+
+				temp_dir.push(dir_name);
+
+				if !temp_dir.is_dir() {
+					match fs::create_dir_all(&temp_dir) {
+					    Ok(_) => success(&format!("Successfully created directory '{}'", dir_name), screen),
+					    Err(e) => error(&format!("Failed to create directory. Details: {}", e), screen),
+					}
+				} else {
+					error(&format!("The directory '{}' already exists", dir_name), screen);
+				}
+			}
+		} else if command == "rmdir" {
+			if commands_len >= 2 {
+				let dir_name = &commands[1];
+				let mut temp_dir = current_dir.clone();
+
+				temp_dir.push(dir_name);
+
+				if temp_dir.is_dir() {
+					let is_empty = temp_dir.read_dir().unwrap().next().is_none();
+
+					if !is_empty {
+						error(&format!("The directory '{}' is not empty", dir_name), screen);
+						continue;
+					}
+
+					match fs::remove_dir(&temp_dir) {
+					    Ok(_) => success(&format!("Successfully removed empty directory '{}'", dir_name), screen),
+					    Err(e) => error(&format!("Failed to remove directory. Details: {}", e), screen),
+					}
+				} else {
+					error(&format!("The directory '{}' does not exist", dir_name), screen);
+				}
 			}
 		}
 	}
