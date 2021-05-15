@@ -205,6 +205,25 @@ Type 'yes' to continue, or anything else to cancel.
 					error(&format!("The directory '{}' does not exist", dir_name), screen);
 				}
 			}
+		} else if command == "rm" {
+			if commands_len >= 2 {
+				let file_name = &commands[1];
+				let mut temp_dir = current_dir.clone();
+
+				temp_dir.push(file_name);
+
+				if temp_dir.is_file() {
+					match fs::remove_file(&temp_dir) {
+					    Ok(_) => success(&format!("Successfully removed file '{}'", file_name), screen),
+					    Err(e) => error(&format!("Failed to remove file. Details: {}", e), screen),
+					}
+				} else if temp_dir.is_dir() {
+					error(&format!("'{}' is a directory, not a file", file_name), screen);
+					
+				} else {
+					error(&format!("The file '{}' does not exist", file_name), screen);
+				}
+			}
 		}
 	}
 }
