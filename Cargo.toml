@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 shell-words = "1.0.0"
 termcolor = "1.1.2"
+phf = { version = "0.8.0", features = ["macros"] }
