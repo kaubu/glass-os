@@ -225,8 +225,14 @@ Type 'yes' to continue, or anything else to cancel.
 				}
 			}
 		} else if command == "clear" {
-			print!("{}", termion::clear::All); // Works
-			// print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1)); // Works, but moves cursor, which I don't like
+			if commands_len >= 2 {
+				if commands[1] == "-r" || commands[1] == "--reset" {
+					print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+					continue;
+				}
+			}
+
+			print!("{}", termion::clear::All);
 		}
 	}
 }
