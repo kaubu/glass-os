@@ -7,6 +7,7 @@ cd [dir]\t\tChange the working directory
 ls [dir ...]\t\tList directory contents
 mkdir [dir]\t\tMake directories
 rmdir [dir]\t\tRemove empty directories
+rm [file]\t\tRemove files
 quit\t\t\tShuts down GlassOS";
 
 pub const COMMANDS_HELP: phf::Map<&'static str, &'static str> = phf_map! {
@@ -48,6 +49,11 @@ Can not remove directories containing files, to do that use 'rmall'.
 
 Example: rmdir test
 Example: rmdir code/src",
+	"rm" => "Usage: rm [file]
+Removes files.
+
+Example: rm passwords.txt
+Example: rm src/colors/Color.h",
 };
 
 pub const DEFAULT_DIR: &str = "./";

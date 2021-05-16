@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::fs;
 use shell_words;
-use termcolor::StandardStream;
-use crate::{consts::{COMMANDS_HELP, DEFAULT_DIR, HELP_MESSAGE}, cursor, input, success};
+use termcolor::{Color, StandardStream};
+use crate::{color_println, consts::{COMMANDS_HELP, DEFAULT_DIR, HELP_MESSAGE}, cursor, input, success};
 
 fn echo(argv: &Vec<String>) {
 	let mut args = argv.clone();
@@ -65,14 +65,14 @@ fn cd(
 	true
 }
 
-fn ls(current_dir: &PathBuf) {
+fn ls(current_dir: &PathBuf, screen: &mut StandardStream) {
 	if current_dir.is_dir() {
 		for entry in current_dir.read_dir().expect("error: Reading directory failed") {
 			if let Ok(entry) = entry {
 				let entry_name = entry.path();
 				let entry_name = entry_name.file_name().unwrap().to_string_lossy();
 				if entry.path().is_dir() {
-					println!("{}/", entry_name);
+					color_println(&format!("{}/", entry_name), Color::Blue, screen);
 				} else {
 					println!("{}", entry_name);
 				}
@@ -125,11 +125,11 @@ pub fn start(username: &str, pc_name: &str, screen: &mut StandardStream) {
 			}
 		} else if command == "ls" {
 			if commands_len == 1 {
-				ls(&current_dir);
+				ls(&current_dir, screen);
 			} else if commands_len >= 2 {
 				let mut temp_dir = current_dir.clone();
 				if cd(&mut temp_dir, commands, screen, &mut error) {
-					ls(&temp_dir);
+					ls(&temp_dir, screen);
 				}
 			}
 		} else if command == "mkdir" {
@@ -224,6 +224,9 @@ Type 'yes' to continue, or anything else to cancel.
 					error(&format!("The file '{}' does not exist", file_name), screen);
 				}
 			}
+		} else if command == "clear" {
+			print!("{}", termion::clear::All); // Works
+			// print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1)); // Works, but moves cursor, which I don't like
 		}
 	}
 }
